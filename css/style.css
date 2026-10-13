@@ -405,3 +405,63 @@ textarea { resize: vertical; }
   .mapa { height: 300px; }
   .whatsapp-float { right: 16px; bottom: 16px; width: 54px; height: 54px; }
 }
+
+/* =========================================================
+   Ajustes da versão com os novos textos
+   ========================================================= */
+.abertura .assinatura { font-size: clamp(1.15rem, 2vw, 1.5rem); max-width: 26em; }
+.abertura__lead--menor { font-size: 1.02rem; color: rgba(255,255,255,.8); margin-top: -.2em; }
+.link-claro { color: #6CC6F0; font-weight: 700; }
+.so-celular { display: none; }
+.pedido__form h3 { margin-bottom: 18px; }
+
+/* Mosaico com 7 modelos: 4 em cima, 3 embaixo */
+.mosaico--7 { grid-template-columns: repeat(12, 1fr); }
+.mosaico--7 .tile { grid-column: span 3; }
+.mosaico--7 .tile:nth-child(n+5) { grid-column: span 4; aspect-ratio: 16 / 12; }
+.mosaico--7 .tile h3 { font-size: 1.08rem; }
+.mosaico--7 .tile p { font-size: .92rem; }
+
+/* Cartão sem foto (aguardando foto real) */
+.tile--sem-foto { background: linear-gradient(135deg, var(--marinho) 0%, var(--azul-forte) 100%); }
+.tile--sem-foto::after { background: linear-gradient(180deg, rgba(7, 38, 56, 0) 30%, rgba(7, 38, 56, .75) 100%); }
+.tile__aviso { position: absolute; inset: 0 0 35% 0; display: grid; place-items: center; }
+.tile__aviso svg { width: 84px; height: 84px; fill: none; stroke: rgba(255,255,255,.5); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+
+.empresa__acao { margin: 28px 0 0; }
+.projetos__nota { max-width: 720px; margin: 34px auto 0; text-align: center; color: var(--texto-suave); }
+.projetos__nota a { font-weight: 700; }
+.projetos__nota + .centro { margin-top: 24px; }
+
+/* Por que escolher */
+.porque { background: var(--azul); color: var(--branco); padding: 72px 0; text-align: center; }
+.porque h2 { color: var(--branco); margin-bottom: 36px; }
+.porque__lista { display: grid; grid-template-columns: repeat(5, 1fr); list-style: none; margin: 0; padding: 0; text-align: left; }
+.porque__lista li { padding: 6px 20px; border-left: 1px solid rgba(255,255,255,.3); }
+.porque__lista li:first-child { border-left: 0; padding-left: 0; }
+.porque__lista strong { display: block; font: 800 .95rem var(--fonte-titulo); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.porque__lista span { font-size: .95rem; color: rgba(255,255,255,.9); }
+.porque__fim { max-width: 640px; margin: 36px auto 0; color: rgba(255,255,255,.92); }
+
+@media (max-width: 1020px) {
+  .so-celular { display: block; }
+  .mosaico--7 { grid-template-columns: repeat(2, 1fr); }
+  .mosaico--7 .tile, .mosaico--7 .tile:nth-child(n+5) { grid-column: auto; aspect-ratio: 4 / 5; }
+  .mosaico--7 .tile:last-child { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+  .porque__lista { grid-template-columns: 1fr 1fr; gap: 22px 0; }
+  .porque__lista li:nth-child(odd) { border-left: 0; padding-left: 0; }
+}
+@media (max-width: 600px) {
+  .mosaico--7 { grid-template-columns: 1fr; }
+  .mosaico--7 .tile, .mosaico--7 .tile:nth-child(n+5), .mosaico--7 .tile:last-child { grid-column: auto; aspect-ratio: 4 / 3; }
+  .porque { padding: 56px 0; }
+  .porque__lista { grid-template-columns: 1fr; gap: 16px; }
+  .porque__lista li, .porque__lista li:first-child { border-left: 0; padding: 0 0 14px; border-bottom: 1px solid rgba(255,255,255,.25); }
+  .centro .botao--grande, .empresa__acao .botao { width: 100%; }
+}
+/* Ajustes pedidos pelo cliente: 9 modelos e botões de WhatsApp por produto */
+a.tile__botao { display: inline-block; text-decoration: none; }
+.tile__medidas { display: block; margin-top: 8px; border: 0; padding: 0; background: none; cursor: pointer; font: 600 .8rem var(--fonte-texto); color: rgba(255,255,255,.8); text-decoration: underline; text-underline-offset: 3px; }
+.tile__medidas:hover { color: var(--branco); }
+.contato__info .botao { margin-top: 6px; }
+@media (max-width: 600px) { .contato__info .botao { width: 100%; } }
