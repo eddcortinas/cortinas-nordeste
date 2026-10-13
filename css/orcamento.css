@@ -167,3 +167,4 @@ label[hidden] { display: none; }
 .topo { border-bottom: 3px solid var(--laranja); }
 .login__logo { height: 44px; }
 .topo__logo { height: 40px; }
+.acessos__lista .status--adm { background: #E1F0F8; color: #0B3954; }
