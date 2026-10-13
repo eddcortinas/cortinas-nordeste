@@ -750,6 +750,14 @@ async function carregarAcessos() {
     email.className = "email";
     email.textContent = u.email;
     const status = document.createElement("span");
+    // Administradores: aparecem para todos os administradores, sem botões de bloquear/remover
+    if (u.adm) {
+      status.className = "status status--adm";
+      status.textContent = u.configurado ? "Administrador" : "Administrador · aguardando 1º acesso";
+      li.append(email, status);
+      listaAcessos.appendChild(li);
+      return;
+    }
     status.className = `status${u.ativo ? "" : " status--bloq"}`;
     status.textContent = u.ativo ? "Liberado" : "Bloqueado";
     const alternar = botaoLinha(u.ativo ? "Bloquear" : "Desbloquear", async () => {
