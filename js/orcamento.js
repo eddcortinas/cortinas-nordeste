@@ -653,7 +653,7 @@ window.addEventListener("hashchange", () => { if (lerPedidoDoLink()) location.re
 const API_ACESSOS = (() => {
   // Só na prévia local dá para apontar para outro servidor (testes)
   try { if (location.hostname === "localhost" && localStorage.getItem("cn-api")) return localStorage.getItem("cn-api"); } catch (e) {}
-  return "https://nordeste-acessos.edduardodemolay.workers.dev";
+  return "https://nordeste-acessos.eddcortinas.workers.dev";
 })();
 const CHAVE_ACESSO = "cn-orcamento-acesso";
 const formLogin = document.querySelector("#form-login");
