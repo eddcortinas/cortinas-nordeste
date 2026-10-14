@@ -1,7 +1,8 @@
 /* =========================================================
    Cortinas Nordeste — gerador de orçamento em PDF (página interna)
    Base: gerador da EDD Cortinas. Os modelos vêm do site (index.html);
-   como o site não mostra preços, o valor do m² é informado em cada item.
+   os preços (R$/m²) são a tabela da EDD + 5%, embutida aqui (a tabela PRECOS).
+   O site público continua sem preços ("sob consulta").
    ========================================================= */
 
 const EMPRESA = {
@@ -16,21 +17,46 @@ const EMPRESA = {
   logo: "img/logo-horizontal.png",
 };
 
-// Garantias e regras da loja ainda não foram informadas: o campo começa vazio
-const CONSIDERACOES_PADRAO = "";
+/* Preços dos modelos = tabela da EDD + 5% (R$/m², exceto os de valor fixo).
+   Modelos sem preço aqui (ex.: "Persianas para empresa", "Tela de projeção")
+   continuam "sob consulta": o valor é informado item a item. */
+const PRECOS = {
+  "Cortina de tecido":         { preco: 163.80, calculo: "tecido", alturamax: 2.80, prazo: 10 },
+  "Cortina blackout":          { preco: 233.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
+  "Cortina rolô / tela solar": { preco: 246.23, guia: 115.50, prazo: 5 },
+  "Cortina romana":            { preco: 379.35, prazo: 12 },
+  "Painel romano":             { preco: 199.98, prazo: 10 },
+  "Cortina motorizada":        { preco: 271.95, acessorios: 1281.00, acessoriosNome: "motor", prazo: 12 },
+  "Persiana double vision":    { preco: 452.76, prazo: 10 },
+  "Persiana vertical":         { preco: 178.40, prazo: 5 },
+  "Persiana horizontal":       { preco: 254.80, prazo: 5 },
+};
 
-// Regras de cálculo da EDD (área mínima e tecido franzido) não se aplicam aqui: cobra o m² real
-const AREA_MINIMA = 0;
+// Considerações gerais padrão (copiadas da EDD — CONFIRMAR com a loja antes de usar de verdade)
+const CONSIDERACOES_PADRAO = [
+  "Por ser material confeccionado sob medida, não é possível cancelar ou modificar o pedido após a autorização, pois a fabricação é iniciada logo em seguida.",
+  "Prazo de garantia de cortinas manuais referente a defeitos de fabricação e instalação: 12 meses.",
+  "Prazo de garantia de cortinas motorizadas referente a defeitos de fabricação e instalação, desde que todas as manutenções e assistências sejam realizadas por nossa empresa: 60 meses.",
+  "Prazo de garantia referente aos serviços de manutenção: 90 dias.",
+  "Não fazemos marcação de horário predefinido para instalação.",
+  "Não nos responsabilizamos por danos causados na rede hidráulica em consequência de perfurações.",
+  "No caso de cortinas motorizadas, a pré-disposição elétrica é de responsabilidade do cliente.",
+].join("\n");
+
+const AREA_MINIMA = 1.5;
 const TECIDO_FRANZIDO = 3;
 const CHAVE_RASCUNHO = "cn-orcamento-rascunho";
 // Cada link de pedido tem o próprio rascunho; sem link, usa o rascunho geral
 let chaveRascunho = CHAVE_RASCUNHO;
 const CHAVE_ULTIMO = "cn-orcamento-ultimo-numero";
 
-/* Condições comerciais: ainda não informadas pela loja.
-   Validade, previsão e forma de pagamento são preenchidas em cada orçamento. */
-const VALIDADE_DIAS = 0;
-const DIAS_INSTALACAO = 0;
+/* Condições comerciais (copiadas da EDD — CONFIRMAR com a loja)
+   - Validade do orçamento: dias corridos a partir da data
+   - Previsão: maior prazo de produção entre os itens (dias úteis) + instalação
+   - Pagamento: à vista com desconto, ou cartão em parcelas sem juros sobre o total cheio */
+const VALIDADE_DIAS = 15;
+const DIAS_INSTALACAO = 2;
+const PAGAMENTO = { descontoAvista: 6, parcelas: 8 };
 
 // Datas no formato do campo (AAAA-MM-DD), sem passar por UTC
 const paraData = (iso) => { const [a, m, d] = iso.split("-").map(Number); return new Date(a, m - 1, d); };
@@ -49,8 +75,10 @@ function somarDiasUteis(iso, dias) {
   }
   return paraIso(d);
 }
-// Forma de pagamento digitada no orçamento (uma por linha)
-const linhasPagamento = () => form.pagamento.value.split("\n").map((s) => s.trim()).filter(Boolean);
+const condicoesPagamento = (total) => ({
+  avista: total * (1 - PAGAMENTO.descontoAvista / 100),
+  parcela: total / PAGAMENTO.parcelas,
+});
 
 const reais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const numero = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -97,24 +125,25 @@ const hoje = () => {
 };
 const dataBR = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
 
-/* ---------- Modelos (lidos do site) ---------- */
+/* ---------- Modelos (lidos do site + preços embutidos) ---------- */
 async function carregarModelos() {
   try {
     const html = await (await fetch("index.html", { cache: "no-store" })).text();
     const doc = new DOMParser().parseFromString(html, "text/html");
-    // O site da Nordeste não tem preços: lê todos os modelos (o valor do m² vai em cada item)
     doc.querySelectorAll("#sim-modelo option").forEach((op) => {
-      if (op.disabled || !op.textContent.trim() || /ainda não sei/i.test(op.textContent)) return;
+      const nome = op.textContent.trim();
+      if (op.disabled || !nome || /ainda não sei/i.test(nome)) return;
+      const p = PRECOS[nome] || {};
       MODELOS.push({
-        nome: op.textContent.trim(),
+        nome,
         grupo: op.parentElement.tagName === "OPTGROUP" ? op.parentElement.label : "Modelos",
-        preco: parseFloat(op.dataset.preco) || 0,
-        calculo: op.dataset.calculo || "",
-        alturamax: parseFloat(op.dataset.alturamax) || 2.8,
-        acessorios: parseFloat(op.dataset.acessorios) || 0,
-        acessoriosNome: op.dataset.acessoriosNome || "acessórios",
-        guia: parseFloat(op.dataset.guia) || 0,
-        prazo: parseInt(op.dataset.prazo, 10) || 0,
+        preco: p.preco || 0,
+        calculo: p.calculo || "",
+        alturamax: p.alturamax || 2.8,
+        acessorios: p.acessorios || 0,
+        acessoriosNome: p.acessoriosNome || "acessórios",
+        guia: p.guia || 0,
+        prazo: p.prazo || 0,
       });
     });
   } catch (e) {
@@ -235,29 +264,35 @@ function lerItens() {
   });
 }
 
-function totais() {
-  // Ajuste interno: "+10" aumenta e "-10" (ou só "10") diminui o preço de cada item.
-  // Não vira linha no PDF: o cliente só vê os itens e o subtotal já ajustados.
-  const ajuste = String(form.descontoPct.value).trim();
+// Calcula os totais a partir de campos + itens já prontos (serve para a tela e para rascunhos guardados)
+function calcularTotais(campos, itens) {
+  const ajuste = String(campos.descontoPct || "").trim();
   const pctAjuste = lerNumero(ajuste.replace(/^[+-]/, ""));
   const fator = 1 + (ajuste.startsWith("+") ? 1 : -1) * pctAjuste / 100;
-  const itens = lerItens().map((d) => {
+  const linhas = itens.map((d) => {
     const r = calcularItem(d);
     return { dados: d, r, totalAjustado: Math.max(0, r.total * fator) };
   });
-  const subtotalSemAjuste = itens.reduce((t, i) => t + i.r.total, 0);
-  const subtotal = itens.reduce((t, i) => t + i.totalAjustado, 0);
-  const frete = lerNumero(form.frete.value);
-  // Desconto que aparece no PDF: em % (sobre o subtotal) ou em R$
-  const valorDesconto = lerNumero(form.desconto.value);
-  const descontoEmPct = form.descontoTipo.value === "%";
+  const subtotalSemAjuste = linhas.reduce((t, i) => t + i.r.total, 0);
+  const subtotal = linhas.reduce((t, i) => t + i.totalAjustado, 0);
+  const frete = lerNumero(campos.frete);
+  const valorDesconto = lerNumero(campos.desconto);
+  const descontoEmPct = (campos.descontoTipo || "%") === "%";
   const desconto = Math.min(subtotal, descontoEmPct ? subtotal * valorDesconto / 100 : valorDesconto);
   return {
-    itens, subtotal, frete, desconto,
+    itens: linhas, subtotal, frete, desconto,
     descontoPct: descontoEmPct && valorDesconto ? valorDesconto : 0,
     ajusteInterno: subtotal - subtotalSemAjuste,
     total: Math.max(0, subtotal + frete - desconto),
   };
+}
+// Totais do que está na tela
+function totais() {
+  const campos = {
+    descontoPct: form.descontoPct.value, frete: form.frete.value,
+    desconto: form.desconto.value, descontoTipo: form.descontoTipo.value,
+  };
+  return calcularTotais(campos, lerItens());
 }
 
 function atualizar() {
@@ -281,15 +316,26 @@ function atualizar() {
     : "O ajuste interno entra no preço de cada item e não aparece no PDF.";
   document.querySelector("#r-total").textContent = reais.format(t.total);
   atualizarDatas(t);
-  document.querySelector("#r-pagamento").textContent = linhasPagamento().length ? `Pagamento: ${linhasPagamento().join(" · ")}` : "";
+  // Forma de pagamento: texto calculado pelo total, até você editar à mão
+  if (form.pagamentoAuto.value === "1") form.pagamento.value = textoPagamentoPadrao(t.total);
+  document.querySelector("#dica-pagamento").textContent = form.pagamentoAuto.value === "1"
+    ? "Preenchido sozinho pelo total. Pode editar à vontade."
+    : "Texto editado por você (não muda mais sozinho). Apague tudo para voltar ao cálculo automático.";
   salvarRascunho();
+}
+
+function textoPagamentoPadrao(total) {
+  if (!total) return "";
+  const p = condicoesPagamento(total);
+  return `À vista: ${reais.format(p.avista)} (${PAGAMENTO.descontoAvista}% de desconto)\n` +
+    `Cartão: ${PAGAMENTO.parcelas}x de ${reais.format(p.parcela)} sem juros`;
 }
 
 // Validade (só orçamento) e previsão de entrega calculada pelos prazos dos itens
 function atualizarDatas(t) {
   const ehPedido = form.tipo.value === "Pedido";
   document.querySelector("#campo-validade").hidden = ehPedido;
-  if (VALIDADE_DIAS && form.data.value && !form.validade.value) form.validade.value = somarDias(form.data.value, VALIDADE_DIAS);
+  if (form.data.value && !form.validade.value) form.validade.value = somarDias(form.data.value, VALIDADE_DIAS);
 
   const maiorPrazo = Math.max(0, ...t.itens.map((i) => (MODELOS[i.dados.modelo] || {}).prazo || 0));
   const dica = document.querySelector("#dica-prazo");
@@ -301,16 +347,40 @@ function atualizarDatas(t) {
 }
 
 /* ---------- Rascunho (só neste aparelho) ---------- */
+// Tudo o que está na tela: { campos, itens } (serve para o rascunho e para salvar no servidor)
+function dadosAtuais() {
+  const campos = {};
+  [...form.elements].forEach((c) => {
+    if (c.name && c.type !== "file") campos[c.name] = c.type === "checkbox" ? c.checked : c.value;
+  });
+  // Guarda também o nome do modelo, para não trocar de modelo se a lista mudar
+  const itens = lerItens().map((d) => ({ ...d, nome: MODELOS[d.modelo] ? MODELOS[d.modelo].nome : "" }));
+  return { campos, itens };
+}
 function salvarRascunho() {
-  try {
-    const campos = {};
-    [...form.elements].forEach((c) => {
-      if (c.name && c.type !== "file") campos[c.name] = c.type === "checkbox" ? c.checked : c.value;
-    });
-    // Guarda também o nome do modelo, para o rascunho não trocar de modelo se a lista mudar
-    const itens = lerItens().map((d) => ({ ...d, nome: MODELOS[d.modelo] ? MODELOS[d.modelo].nome : "" }));
-    localStorage.setItem(chaveRascunho, JSON.stringify({ campos, itens }));
-  } catch (e) {}
+  try { localStorage.setItem(chaveRascunho, JSON.stringify(dadosAtuais())); } catch (e) {}
+}
+// Itens guardados -> itens com o modelo certo da lista atual (pelo nome)
+function itensComModelo(itens) {
+  return (itens || []).map(({ nome, ...d }) => {
+    if (nome) { const i = MODELOS.findIndex((m) => m.nome === nome); d.modelo = i >= 0 ? String(i) : ""; }
+    return d;
+  });
+}
+// Coloca na tela um orçamento guardado ({ campos, itens })
+function aplicarDados(r) {
+  limparFormulario();
+  listaItens.innerHTML = "";
+  Object.entries(r.campos || {}).forEach(([k, v]) => {
+    const c = form[k];
+    if (!c || c.type === "file") return;
+    if (c.type === "checkbox") c.checked = v === true;
+    else c.value = v;
+  });
+  // Rascunho de antes do desconto em %: o desconto dele era em R$
+  if (!("descontoTipo" in (r.campos || {}))) form.descontoTipo.value = "R$";
+  const itens = itensComModelo(r.itens);
+  (itens.length ? itens : [{}]).forEach((d) => adicionarItem(d));
 }
 function carregarRascunho() {
   try { return JSON.parse(localStorage.getItem(chaveRascunho)); } catch (e) { return null; }
@@ -318,20 +388,29 @@ function carregarRascunho() {
 function proximoNumero() {
   try { const n = parseInt(localStorage.getItem(CHAVE_ULTIMO), 10); return n ? String(n + 1) : ""; } catch (e) { return ""; }
 }
-function novoOrcamento() {
+// Campo oculto não volta sozinho com o reset: sem isto o novo herdaria dados do anterior
+function limparFormulario() {
   form.reset();
+  form.idServidor.value = "";
+  form.previsaoAuto.value = "1";
+  form.pagamentoAuto.value = "1";
+}
+function novoOrcamento() {
+  limparFormulario();
   listaItens.innerHTML = "";
   form.numero.value = proximoNumero();
   form.data.value = hoje();
-  form.validade.value = VALIDADE_DIAS ? somarDias(form.data.value, VALIDADE_DIAS) : "";
+  form.validade.value = somarDias(form.data.value, VALIDADE_DIAS);
   form.consideracoes.value = CONSIDERACOES_PADRAO;
   adicionarItem();
 }
 
 // Mudou a previsão na mão: para de calcular sozinho. Apagou: volta ao automático
-form.previsao.addEventListener("input", () => { form.previsaoAuto.value = form.previsao.value || !DIAS_INSTALACAO ? "" : "1"; });
-// Mudou a data do orçamento: a validade acompanha (quando há prazo de validade padrão)
-form.data.addEventListener("change", () => { if (VALIDADE_DIAS && form.data.value) form.validade.value = somarDias(form.data.value, VALIDADE_DIAS); });
+form.previsao.addEventListener("input", () => { form.previsaoAuto.value = form.previsao.value ? "" : "1"; });
+// Editou a forma de pagamento: fica como você escreveu. Apagou tudo: volta ao automático
+form.pagamento.addEventListener("input", () => { form.pagamentoAuto.value = form.pagamento.value.trim() ? "" : "1"; });
+// Mudou a data do orçamento: a validade acompanha
+form.data.addEventListener("change", () => { if (form.data.value) form.validade.value = somarDias(form.data.value, VALIDADE_DIAS); });
 
 /* ---------- Máscaras simples ---------- */
 form.telefone.addEventListener("input", () => {
@@ -367,15 +446,40 @@ document.querySelector("#add-avulso").addEventListener("click", () => {
   const novo = listaItens.lastElementChild;
   novo.querySelector('[data-campo="descricao"]').focus();
 });
-document.querySelector("#novo").addEventListener("click", () => {
-  if (!confirm("Começar um orçamento novo? O atual sai da tela.")) return;
-  // Se veio de um link, o pedido dele continua guardado; o novo usa o rascunho geral
+// Guarda o que está na tela (se tiver algo) e devolve o número seguinte ao dele
+// A tela é liberada na hora; o envio ao servidor segue por trás
+function fecharAtual() {
+  const anterior = parseInt(form.numero.value, 10) || 0;
+  const t = totais();
+  const temAlgo = !!form.cliente.value.trim() || t.total > 0;
+  let envio = Promise.resolve();
+  if (temAlgo) {
+    const dados = dadosAtuais();
+    envio = api("POST", "/orcamentos", { id: form.idServidor.value, dados, resumo: resumoPara(dados, t.total) }).catch(() => null);
+  }
+  // Se veio de um link ou da lista, aquele continua guardado; o novo usa o rascunho geral
   if (chaveRascunho !== CHAVE_RASCUNHO) {
     chaveRascunho = CHAVE_RASCUNHO;
     history.replaceState(null, "", location.pathname);
-    erro.hidden = true;
   }
+  erro.hidden = true;
+  // Tela vazia não gasta número: o novo fica com o mesmo
+  return { seguinte: temAlgo && anterior ? anterior + 1 : anterior, envio };
+}
+// Número do novo: o seguinte ao que estava na tela, ou o da sequência do servidor se for maior
+async function numerarNovo({ seguinte, envio }) {
+  if (seguinte) form.numero.value = String(seguinte);
+  atualizar();
+  salvarRascunho();
+  await envio;
+  await sugerirNumero();
+}
+document.querySelector("#novo").addEventListener("click", () => {
+  if (!confirm("Começar um orçamento novo? O atual é salvo e sai da tela.")) return;
+  const fechado = fecharAtual();
   novoOrcamento();
+  window.scrollTo({ top: 0 });
+  numerarNovo(fechado);
 });
 
 /* ---------- PDF ---------- */
@@ -502,16 +606,17 @@ async function gerarPDF() {
   // Forma de pagamento e observações (à esquerda) e totais (à direita)
   let yt = doc.lastAutoTable.finalY + 8;
   if (yt > 240) { doc.addPage(); yt = 20; }
-  // Forma de pagamento: só aparece se foi preenchida no orçamento
-  const pagto = linhasPagamento();
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(30, 37, 35);
+  doc.setFontSize(8.5); doc.setTextColor(30, 37, 35);
+  // Texto do campo "Forma de pagamento" (automático ou editado); vazio = não aparece
+  const pagamento = f.pagamento.value.split("\n").map((s) => s.trim()).filter(Boolean)
+    .flatMap((linha) => doc.splitTextToSize(txt(linha), 105));
   let yObs = yt;
-  if (pagto.length) {
+  if (pagamento.length) {
+    doc.setFont("helvetica", "bold");
     doc.text("FORMA DE PAGAMENTO:", M, yt);
     doc.setFont("helvetica", "normal");
-    let yp = yt + 5;
-    pagto.forEach((l) => { doc.splitTextToSize(txt(l), 105).forEach((parte) => { doc.text(parte, M, yp); yp += 4.5; }); });
-    yObs = yp + 3;
+    pagamento.forEach((linha, i) => doc.text(linha, M, yt + 5 + i * 4.5));
+    yObs = yt + 5 + pagamento.length * 4.5 + 3;
   }
   doc.setFont("helvetica", "bold");
   doc.text("OBS:", M, yObs);
@@ -598,6 +703,8 @@ form.addEventListener("submit", async (e) => {
   }
   if (!window.jspdf) { erro.textContent = "Não foi possível carregar o gerador de PDF. Verifique a internet e tente de novo."; erro.hidden = false; return; }
   await gerarPDF();
+  // Baixar o PDF também salva no servidor (fica em "Meus orçamentos")
+  salvarNoServidor({ silencioso: true });
 });
 
 /* ---------- Pedido vindo do simulador do site (link #i=...) ---------- */
@@ -649,7 +756,7 @@ window.addEventListener("hashchange", () => { if (lerPedidoDoLink()) location.re
 
 /* ---------- Login ----------
    Login e senha são conferidos no servidor de acessos (Cloudflare Worker).
-   Nada da senha fica no site. O administrador é definido no servidor. */
+   Nada da senha fica no site. Os administradores são definidos no servidor. */
 const API_ACESSOS = (() => {
   // Só na prévia local dá para apontar para outro servidor (testes)
   try { if (location.hostname === "localhost" && localStorage.getItem("cn-api")) return localStorage.getItem("cn-api"); } catch (e) {}
@@ -680,9 +787,11 @@ function mostrarErroLogin(texto) {
   loginErro.textContent = texto;
   loginErro.hidden = false;
 }
-function liberar(adm) {
+let usuarioAtual = "";
+function liberar(adm, usuario) {
   document.body.classList.remove("bloqueado");
   botaoAcessos.hidden = !adm;
+  usuarioAtual = usuario || "";
   iniciar();
 }
 
@@ -708,7 +817,7 @@ formLogin.addEventListener("submit", async (e) => {
   }
   try { (formLogin.lembrar.checked ? localStorage : sessionStorage).setItem(CHAVE_ACESSO, r.acesso); } catch (err) {}
   formLogin.reset();
-  liberar(r.adm);
+  liberar(r.adm, r.usuario);
 });
 
 document.querySelector("#sair").addEventListener("click", () => {
@@ -799,6 +908,201 @@ formAcesso.addEventListener("submit", async (e) => {
   carregarAcessos();
 });
 
+/* ---------- Orçamentos salvos no servidor ----------
+   "Baixar PDF" e "Salvar" guardam o orçamento no servidor; "Meus orçamentos" lista, busca e reabre.
+   Cada pessoa vê os seus; o administrador vê todos. */
+const STATUS = ["Orçamento", "Aprovado", "Em produção", "Pronto", "Instalado", "Perdido"];
+const painelLista = document.querySelector("#painel-lista");
+const listaOrc = document.querySelector("#lista-orc");
+const listaMsg = document.querySelector("#lista-msg");
+let orcamentosSalvos = [];
+
+function aviso(texto, cor = "#0B3954") {
+  erro.textContent = texto;
+  erro.style.color = cor;
+  erro.hidden = !texto;
+}
+function resumoPara(dados, total) {
+  const c = dados.campos || {};
+  return { numero: c.numero, tipo: c.tipo, cliente: c.cliente, bairro: c.bairro, total };
+}
+
+// Guarda no servidor o que está na tela. Devolve true se salvou
+async function salvarNoServidor({ silencioso = false } = {}) {
+  const t = totais();
+  if (!form.cliente.value.trim() && !t.total) {
+    if (!silencioso) aviso("Preencha pelo menos o cliente ou um item antes de salvar.", "");
+    return false;
+  }
+  const dados = dadosAtuais();
+  const r = await api("POST", "/orcamentos", { id: form.idServidor.value, dados, resumo: resumoPara(dados, t.total) })
+    .catch(() => ({ ok: false, erro: "Sem conexão com o servidor. O rascunho continua guardado neste aparelho." }));
+  if (!r.ok) {
+    if (!silencioso) aviso(r.erro || "Não foi possível salvar. Tente de novo.", "");
+    return false;
+  }
+  form.idServidor.value = r.id;
+  if (!form.numero.value.trim()) form.numero.value = r.numero;
+  salvarRascunho();
+  if (!silencioso) aviso(`${form.tipo.value} nº ${form.numero.value} salvo. Ele aparece em "Meus orçamentos" em qualquer aparelho.`);
+  return true;
+}
+document.querySelector("#salvar").addEventListener("click", async (e) => {
+  e.currentTarget.disabled = true;
+  await salvarNoServidor();
+  e.currentTarget.disabled = false;
+});
+
+// Sugere o próximo número pela sequência do servidor (só em orçamento novo, ainda não salvo)
+async function sugerirNumero() {
+  if (form.idServidor.value) return;
+  const r = await api("GET", "/proximo-numero").catch(() => null);
+  if (!r || !r.ok || form.idServidor.value) return;
+  const atual = parseInt(form.numero.value, 10) || 0;
+  if (!form.numero.value.trim() || atual < r.numero) { form.numero.value = String(r.numero); salvarRascunho(); }
+}
+
+// Primeira vez neste aparelho: manda para o servidor os rascunhos que ficaram guardados aqui
+async function importarRascunhos() {
+  let chaves = [];
+  try { chaves = Object.keys(localStorage).filter((k) => k.startsWith(CHAVE_RASCUNHO)); } catch (e) { return; }
+  for (const chave of chaves) {
+    let r;
+    try { r = JSON.parse(localStorage.getItem(chave)); } catch (e) { continue; }
+    if (!r || !r.campos || r.campos.idServidor) continue;
+    const t = calcularTotais(r.campos, itensComModelo(r.itens));
+    if (!String(r.campos.cliente || "").trim() || !t.total) continue; // rascunho vazio ou incompleto não vai
+    const res = await api("POST", "/orcamentos", { dados: r, resumo: resumoPara(r, t.total) }).catch(() => null);
+    if (!res || !res.ok) return; // sem conexão: tenta de novo na próxima vez
+    r.campos.idServidor = res.id;
+    if (!r.campos.numero) r.campos.numero = res.numero;
+    try { localStorage.setItem(chave, JSON.stringify(r)); } catch (e) {}
+    // Se é o que está aberto na tela, a tela também passa a saber que já foi salvo
+    if (chave === chaveRascunho && !form.idServidor.value) {
+      form.idServidor.value = res.id;
+      if (!form.numero.value.trim()) form.numero.value = res.numero;
+    }
+  }
+}
+
+function avisoLista(texto, ok) {
+  listaMsg.textContent = texto;
+  listaMsg.style.color = ok ? "#1f6b33" : "";
+  listaMsg.hidden = !texto;
+}
+function desenharLista() {
+  // Busca sem diferenciar maiúsculas nem acentos; várias palavras: todas precisam aparecer
+  const simples = (v) => String(v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const palavras = simples(document.querySelector("#busca-orc").value).split(/\s+/).filter(Boolean);
+  const tipo = document.querySelector("#filtro-tipo").value;
+  const status = document.querySelector("#filtro-status").value;
+  const verArquivados = document.querySelector("#ver-arquivados").checked;
+  const visiveis = orcamentosSalvos.filter((o) => {
+    const texto = simples([o.cliente, o.numero, o.bairro].join(" "));
+    return o.arquivado === verArquivados &&
+      (!tipo || (o.tipo || "Orçamento") === tipo) &&
+      (!status || o.status === status) &&
+      palavras.every((p) => texto.includes(p));
+  });
+  const soma = visiveis.reduce((t, o) => t + (o.total || 0), 0);
+  document.querySelector("#lista-resumo").textContent = visiveis.length
+    ? `${visiveis.length} ${visiveis.length === 1 ? "item" : "itens"} · ${reais.format(soma)}`
+    : "";
+  listaOrc.innerHTML = "";
+  if (!visiveis.length) {
+    listaOrc.innerHTML = `<li><span class="vazio">${orcamentosSalvos.length ? "Nada encontrado com esse filtro." : 'Nenhum orçamento salvo ainda. Use o botão "Salvar" ou "Baixar PDF".'}</span></li>`;
+    return;
+  }
+  visiveis.forEach((o) => {
+    const li = document.createElement("li");
+    if (o.arquivado) li.className = "is-arquivado";
+    const titulo = document.createElement("span");
+    titulo.className = "salvos__titulo";
+    // Nome do cliente em destaque; o tipo vem numa etiqueta, para não confundir pedido com orçamento
+    const etiqueta = document.createElement("span");
+    etiqueta.className = `salvos__tipo${o.tipo === "Pedido" ? " salvos__tipo--pedido" : ""}`;
+    etiqueta.textContent = `${o.tipo || "Orçamento"} nº ${o.numero || "-"}`;
+    titulo.append(etiqueta, document.createTextNode(o.cliente || "sem nome"));
+    const valor = document.createElement("span");
+    valor.className = "salvos__valor";
+    valor.textContent = reais.format(o.total || 0);
+    const info = document.createElement("span");
+    info.className = "salvos__info";
+    info.textContent = [o.bairro, `alterado em ${dataBR(String(o.atualizado || "").slice(0, 10))}`, o.dono !== usuarioAtual && o.dono ? `feito por ${o.dono}` : ""].filter(Boolean).join(" · ");
+
+    const acoes = document.createElement("div");
+    acoes.className = "salvos__acoes";
+    const abrir = botaoLinha("Abrir", () => abrirSalvo(o.id));
+    const sel = document.createElement("select");
+    sel.setAttribute("aria-label", "Status");
+    sel.innerHTML = STATUS.map((s) => `<option value="${s}"${s === o.status ? " selected" : ""}>${s === "Orçamento" ? "Em aberto" : s}</option>`).join("");
+    sel.addEventListener("change", async () => {
+      const res = await api("POST", "/orcamentos/status", { id: o.id, status: sel.value }).catch(() => ({ ok: false }));
+      if (res.ok) o.status = sel.value;
+      avisoLista(res.ok ? `Nº ${o.numero}: status "${sel.value}".` : res.erro || "Não deu certo, tente de novo.", res.ok);
+      desenharLista();
+    });
+    const arquivar = botaoLinha(o.arquivado ? "Desarquivar" : "Arquivar", async () => {
+      const res = await api("POST", "/orcamentos/arquivar", { id: o.id, arquivado: !o.arquivado }).catch(() => ({ ok: false }));
+      if (res.ok) o.arquivado = !o.arquivado;
+      avisoLista(res.ok ? `Nº ${o.numero} ${o.arquivado ? "arquivado" : "de volta à lista"}.` : res.erro || "Não deu certo, tente de novo.", res.ok);
+      desenharLista();
+    });
+    const copiar = botaoLinha("Copiar", () => copiarSalvo(o.id));
+    acoes.append(abrir, copiar, sel, arquivar);
+    li.append(titulo, valor, info, acoes);
+    listaOrc.appendChild(li);
+  });
+}
+async function carregarLista() {
+  listaOrc.innerHTML = '<li><span class="vazio">Carregando...</span></li>';
+  const r = await api("GET", "/orcamentos").catch(() => ({ ok: false, erro: "Sem conexão com o servidor." }));
+  if (!r.ok) { listaOrc.innerHTML = ""; return avisoLista(r.erro || "Não foi possível carregar a lista."); }
+  orcamentosSalvos = r.orcamentos;
+  desenharLista();
+}
+// Abre um orçamento salvo: ele passa a ter o próprio rascunho neste aparelho
+async function abrirSalvo(id) {
+  const r = await api("GET", `/orcamentos/${id}`).catch(() => ({ ok: false, erro: "Sem conexão com o servidor." }));
+  if (!r.ok) { desenharLista(); return avisoLista(r.erro || "Não foi possível abrir."); }
+  chaveRascunho = `${CHAVE_RASCUNHO}-s-${id}`;
+  history.replaceState(null, "", location.pathname);
+  aplicarDados(r.dados);
+  form.idServidor.value = id;
+  atualizar();
+  painelLista.close();
+  aviso(`${form.tipo.value} nº ${form.numero.value} aberto. Depois de alterar, clique em "Salvar".`);
+  window.scrollTo({ top: 0 });
+}
+// Copia um orçamento salvo para um novo, com o próximo número e a data de hoje. O original não muda
+async function copiarSalvo(id) {
+  const r = await api("GET", `/orcamentos/${id}`).catch(() => ({ ok: false, erro: "Sem conexão com o servidor." }));
+  if (!r.ok) { desenharLista(); return avisoLista(r.erro || "Não foi possível copiar."); }
+  const fechado = fecharAtual();
+  aplicarDados(r.dados);
+  const origem = form.numero.value;
+  form.idServidor.value = "";
+  form.numero.value = "";
+  form.data.value = hoje();
+  form.validade.value = somarDias(form.data.value, VALIDADE_DIAS);
+  form.previsao.value = "";
+  form.previsaoAuto.value = "1";
+  await numerarNovo(fechado);
+  painelLista.close();
+  aviso(`Cópia do nº ${origem} aberta como nº ${form.numero.value || "novo"}. Altere o que precisar e clique em "Salvar".`);
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelector("#abrir-lista").addEventListener("click", () => {
+  avisoLista("");
+  painelLista.showModal();
+  carregarLista();
+});
+document.querySelector("#fechar-lista").addEventListener("click", () => painelLista.close());
+["#busca-orc", "#filtro-tipo", "#filtro-status", "#ver-arquivados"].forEach((s) => {
+  document.querySelector(s).addEventListener("input", desenharLista);
+});
+
 /* ---------- Início (só depois do login) ---------- */
 let iniciado = false;
 async function iniciar() {
@@ -816,31 +1120,22 @@ async function iniciar() {
     erro.style.color = "#0B3954";
     erro.hidden = false;
   } else if (r && r.campos) {
-    Object.entries(r.campos).forEach(([k, v]) => {
-      const c = form[k];
-      if (!c || c.type === "file") return;
-      if (c.type === "checkbox") c.checked = v === true;
-      else c.value = v;
-    });
-    // Rascunho de antes do desconto em %: o desconto dele era em R$
-    if (!("descontoTipo" in r.campos)) form.descontoTipo.value = "R$";
-    (r.itens && r.itens.length ? r.itens : [{}]).forEach(({ nome, ...d }) => {
-      if (nome) { const i = MODELOS.findIndex((m) => m.nome === nome); d.modelo = i >= 0 ? String(i) : ""; }
-      adicionarItem(d);
-    });
+    aplicarDados(r);
   } else {
     novoOrcamento();
   }
   if (!form.consideracoes.value) form.consideracoes.value = CONSIDERACOES_PADRAO;
   if (!form.data.value) form.data.value = hoje();
   atualizar();
+  // Primeiro sobem os rascunhos antigos (a numeração acompanha), depois vem a sugestão do próximo nº
+  importarRascunhos().then(sugerirNumero);
 }
 
 // Já entrou antes neste aparelho? Confirma com o servidor (vale bloqueio na hora)
 (async () => {
   if (!lerAcesso()) return formLogin.usuario.focus();
   const r = await api("GET", "/eu").catch(() => null);
-  if (r && r.ok && r.usuario) return liberar(r.adm);
+  if (r && r.ok && r.usuario) return liberar(r.adm, r.usuario);
   apagarAcesso();
   if (!r) mostrarErroLogin("Sem conexão com o servidor. Confira a internet e tente de novo.");
   else if (r.status === 401) mostrarErroLogin("Entre novamente.");
