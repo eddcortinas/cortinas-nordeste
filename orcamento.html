@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/orcamento.css?v=2">
+  <link rel="stylesheet" href="css/orcamento.css?v=3">
 </head>
 <body class="bloqueado">
   <!-- Login: a página só abre depois de entrar -->
@@ -34,6 +34,7 @@
       <p>Preencha e baixe o PDF com a logo da Cortinas Nordeste. Os dados ficam salvos só neste aparelho.</p>
     </div>
     <div class="topo__acoes">
+      <button type="button" class="btn btn--linha" id="abrir-lista">Meus orçamentos</button>
       <button type="button" class="btn btn--linha" id="abrir-acessos" hidden>Gerenciar acessos</button>
       <button type="button" class="btn btn--linha" id="sair">Sair</button>
     </div>
@@ -53,6 +54,35 @@
     </form>
     <p class="erro" id="acessos-msg" role="status" hidden></p>
     <ul class="acessos__lista" id="lista-acessos"></ul>
+  </dialog>
+
+  <!-- Orçamentos e pedidos salvos no servidor (cada um vê os seus; o administrador vê todos) -->
+  <dialog class="acessos salvos" id="painel-lista">
+    <div class="acessos__topo">
+      <h2>Meus orçamentos</h2>
+      <button type="button" class="acessos__fechar" id="fechar-lista" aria-label="Fechar">✕</button>
+    </div>
+    <div class="salvos__filtros">
+      <input type="search" id="busca-orc" placeholder="Buscar por cliente, nº ou bairro" autocomplete="off">
+      <select id="filtro-tipo" aria-label="Filtrar por tipo de documento">
+        <option value="">Orçamentos e pedidos</option>
+        <option value="Orçamento">Só orçamentos</option>
+        <option value="Pedido">Só pedidos</option>
+      </select>
+      <select id="filtro-status" aria-label="Filtrar por status">
+        <option value="">Todos os status</option>
+        <option value="Orçamento">Em aberto</option>
+        <option>Aprovado</option>
+        <option>Em produção</option>
+        <option>Pronto</option>
+        <option>Instalado</option>
+        <option>Perdido</option>
+      </select>
+      <label class="salvos__arquivados"><input type="checkbox" id="ver-arquivados"> Arquivados</label>
+    </div>
+    <p class="dica" id="lista-resumo"></p>
+    <p class="erro" id="lista-msg" role="status" hidden></p>
+    <ul class="salvos__lista" id="lista-orc"></ul>
   </dialog>
 
   <main class="pagina">
@@ -76,8 +106,10 @@
           <label id="campo-validade">Válido até<input type="date" name="validade"></label>
           <label>Previsão de entrega<input type="date" name="previsao"></label>
         </div>
-        <!-- Sem prazos cadastrados: a previsão é sempre escolhida à mão -->
-        <input type="hidden" name="previsaoAuto" value="">
+        <!-- "1" = previsão calculada sozinha pelos prazos dos itens; vira "" se você mudar a data na mão -->
+        <input type="hidden" name="previsaoAuto" value="1">
+        <!-- Identificação deste orçamento no servidor (vazio = ainda não foi salvo lá) -->
+        <input type="hidden" name="idServidor" value="">
         <p class="dica" id="dica-prazo"></p>
       </section>
 
@@ -126,6 +158,9 @@
         </div>
         <p class="dica" id="dica-ajuste">O ajuste interno entra no preço de cada item e não aparece no PDF.</p>
         <label>Forma de pagamento (aparece no PDF; uma por linha)<textarea name="pagamento" rows="2" placeholder="Ex.: À vista no Pix&#10;Cartão em até 6x"></textarea></label>
+        <!-- "1" = texto calculado sozinho pelo total; vira "" se você editar. Apagou tudo: volta ao automático -->
+        <input type="hidden" name="pagamentoAuto" value="1">
+        <p class="dica" id="dica-pagamento"></p>
         <label>Observações<textarea name="obs" rows="2" placeholder="Ex.: tecido e cor a confirmar."></textarea></label>
         <label>Considerações gerais (uma por linha)<textarea name="consideracoes" rows="5" placeholder="Ex.: garantia, prazo de instalação, regras de cancelamento..."></textarea></label>
         <label>Fotos do ambiente (opcional, até 2)<input type="file" name="fotos" accept="image/*" multiple></label>
@@ -136,13 +171,13 @@
           <div><span id="r-desconto-rotulo">Desconto</span><strong id="r-desconto">R$ 0,00</strong></div>
           <div class="resumo__total"><span>Total</span><strong id="r-total">R$ 0,00</strong></div>
         </div>
-        <p class="resumo__pagamento" id="r-pagamento"></p>
       </section>
 
       <p class="erro" id="erro" role="alert" hidden></p>
 
       <div class="acoes">
         <button type="button" class="btn btn--linha" id="novo">Novo orçamento</button>
+        <button type="button" class="btn btn--linha" id="salvar">Salvar</button>
         <button type="submit" class="btn btn--primario">Baixar PDF</button>
       </div>
     </form>
@@ -168,6 +203,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
-  <script src="js/orcamento.js?v=2" defer></script>
+  <script src="js/orcamento.js?v=3" defer></script>
 </body>
 </html>
