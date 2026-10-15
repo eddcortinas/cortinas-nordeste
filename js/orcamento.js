@@ -27,9 +27,10 @@ const PRECOS = {
   "Cortina romana":            { preco: 379.35, prazo: 12 },
   "Painel romano":             { preco: 199.98, prazo: 10 },
   "Cortina motorizada":        { preco: 271.95, acessorios: 1281.00, acessoriosNome: "motor", prazo: 12 },
-  "Persiana double vision":    { preco: 452.76, prazo: 10 },
-  "Persiana vertical":         { preco: 178.40, prazo: 5 },
-  "Persiana horizontal":       { preco: 254.80, prazo: 5 },
+  "Persiana double vision":      { preco: 452.76, prazo: 10 },
+  "Persiana vertical de tecido": { preco: 178.40, prazo: 5 },
+  "Persiana vertical de PVC":    { preco: 245.70, prazo: 5 },
+  "Persiana horizontal":         { preco: 254.80, prazo: 5 },
 };
 
 // Considerações gerais padrão (copiadas da EDD — CONFIRMAR com a loja antes de usar de verdade)
