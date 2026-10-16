@@ -33,7 +33,7 @@ const PRECOS = {
   "Persiana horizontal":         { preco: 254.80, prazo: 5 },
 };
 
-// Considerações gerais padrão (copiadas da EDD — CONFIRMAR com a loja antes de usar de verdade)
+// Considerações gerais padrão (as mesmas da EDD, confirmadas pela loja)
 const CONSIDERACOES_PADRAO = [
   "Por ser material confeccionado sob medida, não é possível cancelar ou modificar o pedido após a autorização, pois a fabricação é iniciada logo em seguida.",
   "Prazo de garantia de cortinas manuais referente a defeitos de fabricação e instalação: 12 meses.",
@@ -51,7 +51,7 @@ const CHAVE_RASCUNHO = "cn-orcamento-rascunho";
 let chaveRascunho = CHAVE_RASCUNHO;
 const CHAVE_ULTIMO = "cn-orcamento-ultimo-numero";
 
-/* Condições comerciais (copiadas da EDD — CONFIRMAR com a loja)
+/* Condições comerciais (as mesmas da EDD, confirmadas pela loja)
    - Validade do orçamento: dias corridos a partir da data
    - Previsão: maior prazo de produção entre os itens (dias úteis) + instalação
    - Pagamento: à vista com desconto, ou cartão em parcelas sem juros sobre o total cheio */
@@ -949,9 +949,11 @@ async function salvarNoServidor({ silencioso = false } = {}) {
   return true;
 }
 document.querySelector("#salvar").addEventListener("click", async (e) => {
-  e.currentTarget.disabled = true;
+  // Guarda o botão antes do await: depois dele o e.currentTarget fica vazio
+  const botao = e.currentTarget;
+  botao.disabled = true;
   await salvarNoServidor();
-  e.currentTarget.disabled = false;
+  botao.disabled = false;
 });
 
 // Sugere o próximo número pela sequência do servidor (só em orçamento novo, ainda não salvo)
