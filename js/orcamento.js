@@ -18,11 +18,12 @@ const EMPRESA = {
 };
 
 /* Preços dos modelos = tabela da EDD + 5% (R$/m², exceto os de valor fixo).
+   Exceção: cortina de tecido (R$ 86,00) e blackout (R$ 160,00), definidos pela loja.
    Modelos sem preço aqui (ex.: "Persianas para empresa", "Tela de projeção")
    continuam "sob consulta": o valor é informado item a item. */
 const PRECOS = {
-  "Cortina de tecido":         { preco: 163.80, calculo: "tecido", alturamax: 2.80, prazo: 10 },
-  "Cortina blackout":          { preco: 233.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
+  "Cortina de tecido":         { preco: 86.00, calculo: "tecido", alturamax: 2.80, prazo: 10 },
+  "Cortina blackout":          { preco: 160.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
   "Cortina rolô / tela solar": { preco: 246.23, guia: 115.50, prazo: 5 },
   "Cortina romana":            { preco: 379.35, prazo: 12 },
   "Painel romano":             { preco: 199.98, prazo: 10 },
