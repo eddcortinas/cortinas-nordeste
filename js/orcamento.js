@@ -18,12 +18,12 @@ const EMPRESA = {
 };
 
 /* Preços dos modelos = tabela da EDD + 5% (R$/m², exceto os de valor fixo).
-   Exceção: cortina de tecido (R$ 86,00) e blackout (R$ 160,00), definidos pela loja.
+   Exceção: cortina de tecido (R$ 86,00) e de tecido com blackout (R$ 160,00), definidos pela loja.
    Modelos sem preço aqui (ex.: "Persianas para empresa", "Tela de projeção")
    continuam "sob consulta": o valor é informado item a item. */
 const PRECOS = {
   "Cortina de tecido":         { preco: 86.00, calculo: "tecido", alturamax: 2.80, prazo: 10 },
-  "Cortina blackout":          { preco: 160.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
+  "Cortina de tecido com blackout": { preco: 160.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
   "Cortina rolô / tela solar": { preco: 246.23, guia: 115.50, prazo: 5 },
   "Cortina romana":            { preco: 379.35, prazo: 12 },
   "Painel romano":             { preco: 199.98, prazo: 10 },
@@ -362,10 +362,13 @@ function dadosAtuais() {
 function salvarRascunho() {
   try { localStorage.setItem(chaveRascunho, JSON.stringify(dadosAtuais())); } catch (e) {}
 }
+// Modelos que mudaram de nome: orçamentos e pedidos antigos continuam abrindo com o modelo certo
+const NOMES_ANTIGOS = { "Cortina blackout": "Cortina de tecido com blackout" };
+const indiceModelo = (nome) => MODELOS.findIndex((m) => m.nome === (NOMES_ANTIGOS[nome] || nome));
 // Itens guardados -> itens com o modelo certo da lista atual (pelo nome)
 function itensComModelo(itens) {
   return (itens || []).map(({ nome, ...d }) => {
-    if (nome) { const i = MODELOS.findIndex((m) => m.nome === nome); d.modelo = i >= 0 ? String(i) : ""; }
+    if (nome) { const i = indiceModelo(nome); d.modelo = i >= 0 ? String(i) : ""; }
     return d;
   });
 }
@@ -734,7 +737,7 @@ function carregarPedido(pedido) {
   novoOrcamento();
   listaItens.innerHTML = "";
   pedido.forEach((p) => {
-    const indice = MODELOS.findIndex((m) => m.nome === p.m);
+    const indice = indiceModelo(p.m);
     adicionarItem({
       ambiente: p.a || "",
       modelo: indice >= 0 ? String(indice) : "",
