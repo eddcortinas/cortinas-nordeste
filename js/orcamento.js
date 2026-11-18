@@ -1,7 +1,7 @@
 /* =========================================================
    Cortinas Nordeste — gerador de orçamento em PDF (página interna)
    Base: gerador da EDD Cortinas. Os modelos vêm do site (index.html);
-   os preços (R$/m²) são a tabela da EDD + 5%, embutida aqui (a tabela PRECOS).
+   os preços (R$/m²) são a tabela da EDD - 5%, embutida aqui (a tabela PRECOS).
    O site público continua sem preços ("sob consulta").
    ========================================================= */
 
@@ -17,21 +17,21 @@ const EMPRESA = {
   logo: "img/logo-horizontal.png",
 };
 
-/* Preços dos modelos = tabela da EDD + 5% (R$/m², exceto os de valor fixo).
+/* Preços dos modelos = tabela da EDD - 5% (R$/m², exceto os de valor fixo).
    Exceção: cortina de tecido (R$ 86,00) e de tecido com blackout (R$ 160,00), definidos pela loja.
    Modelos sem preço aqui (ex.: "Persianas para empresa", "Tela de projeção")
    continuam "sob consulta": o valor é informado item a item. */
 const PRECOS = {
   "Cortina de tecido":         { preco: 86.00, calculo: "tecido", alturamax: 2.80, prazo: 10 },
   "Cortina de tecido com blackout": { preco: 160.00, calculo: "tecido", alturamax: 2.70, prazo: 10 },
-  "Cortina rolô / tela solar": { preco: 246.23, guia: 115.50, prazo: 5 },
-  "Cortina romana":            { preco: 379.35, prazo: 12 },
-  "Painel romano":             { preco: 199.98, prazo: 10 },
-  "Cortina motorizada":        { preco: 271.95, acessorios: 1281.00, acessoriosNome: "motor", prazo: 12 },
-  "Persiana double vision":      { preco: 452.76, prazo: 10 },
-  "Persiana vertical de tecido": { preco: 178.40, prazo: 5 },
-  "Persiana vertical de PVC":    { preco: 245.70, prazo: 5 },
-  "Persiana horizontal":         { preco: 254.80, prazo: 5 },
+  "Cortina rolô / tela solar": { preco: 222.78, guia: 104.50, prazo: 5 },
+  "Cortina romana":            { preco: 343.23, prazo: 12 },
+  "Painel romano":             { preco: 180.94, prazo: 10 },
+  "Cortina motorizada":        { preco: 246.05, acessorios: 1159.00, acessoriosNome: "motor", prazo: 12 },
+  "Persiana double vision":      { preco: 409.64, prazo: 10 },
+  "Persiana vertical de tecido": { preco: 161.41, prazo: 5 },
+  "Persiana vertical de PVC":    { preco: 222.30, prazo: 5 },
+  "Persiana horizontal":         { preco: 230.54, prazo: 5 },
 };
 
 // Considerações gerais padrão (as mesmas da EDD, confirmadas pela loja)
