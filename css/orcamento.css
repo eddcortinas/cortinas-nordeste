@@ -188,3 +188,12 @@ label[hidden] { display: none; }
 .salvos__acoes button { padding: 6px 14px; font-size: .84rem; }
 .salvos__lista .vazio { display: block; color: var(--suave); }
 @media (max-width: 640px) { .salvos__filtros { grid-template-columns: 1fr 1fr; } .salvos__filtros input[type=search] { grid-column: 1 / -1; } .salvos__filtros select { width: 100%; } }
+
+/* Recibo (no fim do formulário) */
+.recibo { border-left: 4px solid var(--laranja); }
+.recibo .bloco__titulo { margin-bottom: 14px; }
+.recibo .bloco__titulo h2 { margin-bottom: 0; }
+#dica-recibo { margin: 10px 0 0; }
+#dica-recibo:empty { display: none; }
+#erro-recibo { margin: 8px 0 0; }
+.recibo__acoes { display: flex; justify-content: flex-end; margin-top: 12px; }
